@@ -1,0 +1,13 @@
+2014-01-18
+==========
+
+So far I've been able to plot the data on a 2D space. But now that I
+need to figure how to plot the decision boundary.
+
+Will need to split the test data so that I can use the cross-validation
+set to determine the optimal value for the regularization parameter.
+
+2014-01-20
+==========
+
+We need to make sure that we also find the proper C value for regularization
