@@ -8,24 +8,24 @@ import numpy as np
 from scipy import optimize
 
 import f2
-# def sigmoid(z):
-#     return 1.0/(1.0+np.exp(-z))
+def sigmoid(z):
+    return 1.0/(1.0+np.exp(-z))
 
-# def cost(X, theta, y):
-#     print("X1 size is = ",X.shape)
-#     print("theta1 size is = ", theta.shape)
-#     h = sigmoid(np.dot(X,theta))
+def cost(theta, X, y):
+	m = X.shape[0]
+	h = sigmoid(np.dot(X,theta))
     
-#     # Calculate cost function
-#     # y.T takes transpose of numpy array y.
-#     J=1/m*(-np.dot(y.T,np.log(h)) - np.dot((1.0-y).T,np.log(1.0-h)))
-#     return J[0,0]
-# def grad(X, theta, y): 
-#     print("X size is = ",X.shape)
-#     print("theta size is = ", theta.shape)
-#     h = sigmoid(np.dot(X,theta))  
-#     grad = np.dot(X.T,1.0/m*(h-y))
-#     return grad
+    # Calculate cost function
+    # y.T takes transpose of numpy array y.
+	J=1/m*(-np.dot(y.T,np.log(h)) - np.dot((1.0-y).T,np.log(1.0-h)))
+	return J
+def grad(theta, X, y): 
+	m = X.shape[0]
+	print("X size is = ",X.shape)
+	print("theta size is = ", theta.shape)
+	h = sigmoid(np.dot(X,theta))  
+	grad = np.dot(X.T,1.0/m*(h-y))
+	return grad
 
 # ---------------------------------------------------
 # Read In Data
@@ -68,9 +68,9 @@ initial_theta = np.zeros((n+1,1))
 # X is now m x n+1 array
 X=np.hstack((bias,X))
 
-cost,grad = f2.cost_function(initial_theta, X, y)
+# cost,grad = f2.cost_function(initial_theta, X, y)
 
-# res1 = optimize.fmin_cg(cost(X,initial_theta,y), initial_theta, fprime=grad(X,initial_theta,y))
+res1 = optimize.fmin_cg(cost, initial_theta, grad, (X,y))
 # ---------------------------------------------------
 # Calculate Cost Functions and Gradients
 # ---------------------------------------------------
