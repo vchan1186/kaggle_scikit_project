@@ -8,9 +8,12 @@ def read_csv_file(csvFile):
 	return np.genfromtxt(csvFile,delimiter=",")
 
 def normalize_range(X):
-	""" Given a data matrix of continuous values, normalizes the range to -1 to 1 """
-	
+	""" Given a data matrix of continuous values, puts values into similar ranges """
+	mu = np.mean(X,axis=1)
+	s = np.max(X,axis=1) - np.min(X,axis=1)
+	return (X - np.reshape(mu,(mu.size,1)))/np.reshape(s,(s.size,1))
 
+	
 def get_subset_idx(X,n):
 	""" Returns a random percentage (or number) of the provided data (just indices) """
 	N = np.shape(X)[1]
