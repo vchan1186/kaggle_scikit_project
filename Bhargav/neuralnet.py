@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.optimize import fmin_cg
 
 # Default parameters for the neural net
 dParam = {
@@ -7,6 +8,7 @@ dParam = {
 'nIter':1000,
 'alpha':0.9,
 'lrate':0.35,
+'adaptive':False,
 'nHid': 50,
 'batchSize':100,
 'earlyStop':False,
@@ -21,10 +23,23 @@ class nnet:
 		self.k = k # output (layer) size
 		self.W_in2hid = 0.1*np.random.rand(d+1,param['nHid'])	# weights from input to hidden layer (+bias), transposed
 		self.W_hid2out = 0.1*np.random.rand(param['nHid']+1,k) # weights from hidden layer to output (+bias), transposed
+		
+		# needed for early stopping
 		self.bW_in2hid = np.random.rand(d+1,param['nHid']) # stores the best W_in2hid
 		self.bW_hid2out = np.random.rand(param['nHid']+1,k) # stores the best W_hid2out
-		self.mW_in2hid = np.zeros([d+1,param['nHid']]) # needed for momentum
-		self.mW_hid2out = np.zeros([param['nHid']+1,k]) # needed for momentum
+		
+		# needed for momentum
+		self.mW_in2hid = np.zeros([d+1,param['nHid']])
+		self.mW_hid2out = np.zeros([param['nHid']+1,k])
+
+		# needed for adaptive learning
+		# gain values
+		self.gW_in2hid = np.ones([d+1,param['nHid']])
+		self.gW_hid2out = np.ones([param['nHid']+1,k])
+		# last computed derivative
+		self.ldE_dW_in2hid = np.ones([d+1,param['nHid']])
+		self.ldE_dW_hid2out = np.ones([param['nHid']+1,k])
+
 		# uncomment for gradient checking
 		#self.gradient = np.empty((d+1)*param['nHid'] + (param['nHid']+1)*k) # needed only for doing gradient checking
 
@@ -63,8 +78,20 @@ class nnet:
 		
 		return dE_dW_in2hid, dE_dW_hid2out
 
+	def compute_gradient(self,w,X,y):
+		""" mainly needed for scipy lm-bfgs or conjugate-gradient optimization routines"""
+		
+		W_in2hid,W_hid2out = self.reroll(w)
+		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
+		dE_dW_in2hid, dE_dW_hid2out = self.bprop(X,y,hidAct,outAct,W_in2hid,W_hid2out)
+		return self.reroll(dE_dW_in2hid,dE_dW_hid2out)
+
+	def optimize():
+		""" uses scipy optimization routines to minimize the cost function """
+
+
 	def train(self,Xtr,ytr,Xval=None,yval=None):
-		""" Performs repeated fprop and bprop to train a 2-layer feed-forward neural network """
+		""" Performs repeated fprop+bprop with an update method to train a 2-layer feed-forward neural network """
 		
 		nTr = np.shape(Xtr)[1]
 		Xtr = np.append(np.ones([1,nTr]),Xtr,axis=0)
@@ -97,6 +124,10 @@ class nnet:
 
 			# update weights
 			self.update_weights(dE_dW_in2hid,dE_dW_hid2out)
+
+			# keep track of the last-used gradient if we are doing adaptive learning
+			self.ldE_dW_in2hid = dE_dW_in2hid
+			self.ldE_dW_hid2out = dE_dW_hid2out
 
 			# uncomment to compute training and (if val-set provided) validation loss
 			hidAct, outAct = self.fprop(Xtr)
@@ -143,34 +174,48 @@ class nnet:
 		plt.show()
 
 	def update_weights(self,dE_dW_in2hid,dE_dW_hid2out):
-		
-		# fixed learning-rate gradient-descent
+		# decide if we are in a fixed-rate or adaptive learning rate regime
+		if self.param['adaptive']:
+			# check for the agreement of signs
+			sW_in2hid = self.ldE_dW_in2hid*dE_dW_in2hid
+			sW_hid2out = self.ldE_dW_hid2out*dE_dW_hid2out
+			self.gW_in2hid += (sW_in2hid>0)*0.05
+			self.gW_in2hid *= (sW_in2hid<0)*0.95
+			self.gW_hid2out += (sW_hid2out>0)*0.05
+			self.gW_hid2out *= (sW_hid2out<0)*0.95
+			# keep the learning rates clamped
+			self.gW_in2hid = self.clamp(self.gW_in2hid,0.1,10)
+			self.gW_hid2out = self.clamp(self.gW_hid2out,0.1,10)
+
+		# simple gradient-descent
 		if self.param['update']=='default':
-			self.W_in2hid -= self.param['lrate']*dE_dW_in2hid
-			self.W_hid2out -= self.param['lrate']*dE_dW_hid2out
+			self.W_in2hid -= self.param['lrate']*self.gW_in2hid*dE_dW_in2hid
+			self.W_hid2out -= self.param['lrate']*self.gW_hid2out*dE_dW_hid2out
 		
 		# momentum
 		elif self.param['update']=='momentum':
 			self.mW_in2hid = self.param['alpha']*self.mW_in2hid + dE_dW_in2hid
 			self.mW_hid2out = self.param['alpha']*self.mW_hid2out + dE_dW_hid2out
-			self.W_in2hid -= self.param['lrate']*self.mW_in2hid
-			self.W_hid2out -= self.param['lrate']*self.mW_hid2out
+			self.W_in2hid -= self.param['lrate']*self.gW_in2hid*self.mW_in2hid
+			self.W_hid2out -= self.param['lrate']*self.gW_hid2out*self.mW_hid2out
 		
 		# improved momentum
 		elif self.param['update']=='improved momentum':
 			# same as 'default' 
-			self.W_in2hid -= self.param['lrate']*dE_dW_in2hid
-			self.W_hid2out -= self.param['lrate']*dE_dW_hid2out
+			self.W_in2hid -= self.param['lrate']*self.gW_in2hid*dE_dW_in2hid
+			self.W_hid2out -= self.param['lrate']*self.gW_hid2out*dE_dW_hid2out
 			# update the momentum terms
-			self.mW_in2hid = self.param['alpha']*(self.mW_in2hid - self.param['lrate']*dE_dW_in2hid)
-			self.mW_hid2out = self.param['alpha']*(self.mW_hid2out - self.param['lrate']*dE_dW_hid2out)
+			self.mW_in2hid = self.param['alpha']*(self.mW_in2hid - self.param['lrate']*self.gW_in2hid*dE_dW_in2hid)
+			self.mW_hid2out = self.param['alpha']*(self.mW_hid2out - self.param['lrate']*self.gW_hid2out*dE_dW_hid2out)
+
+		# rmsprop
 
 	def predict(self,X,y=None):
 		"""Uses fprop for predicting labels of data"""
 
 		n = np.shape(X)[1]
 		X = np.append(np.ones([1,n]),X,axis=0)
-		hidAct, outAct = self.fprop(X,self.bW_in2hid,self.bW_hid2out)
+		hidAct, outAct = self.fprop(X,self.W_in2hid,self.W_hid2out)
 		if y==None:
 			return np.argmax(outAct,axis=0)
 		return 1.0-np.mean(1.0*(np.argmax(outAct,axis=0)==np.argmax(y,axis=0)))
@@ -192,12 +237,13 @@ class nnet:
 		return np.exp(z-logSum)
 
 	def compute_class_loss(self,outAct,y):
-		""" Computes the cross-entropy classification loss of the model (without weight decay)"""
+		"""Computes the cross-entropy classification loss of the model (without weight decay)"""
 		
+		#  E = 1/N*sum(-y*log(p)) - negative log probability of the right answer		
 		return np.mean(np.sum(-1.0*y*np.log(outAct),axis=0))
 
 	def compute_loss(self,outAct,y,W_in2hid=None, W_hid2out=None):
-		""" Computes the cross entropy classification (with weight decay)"""
+		"""Computes the cross entropy classification (with weight decay)"""
 		
 		if W_in2hid is None and W_hid2out is None:
 			W_in2hid = self.W_in2hid
@@ -205,18 +251,25 @@ class nnet:
 		
 		return self.compute_class_loss(outAct,y) + 0.5*self.param['decay']*(np.sum(W_in2hid**2)+np.sum(W_hid2out**2))
 
-	def unroll(self,W_in2hid,W_hid2out):
-		""" flattens a matrix to a vector """
-		return np.append(W_in2hid.flatten(),W_hid2out.flatten())
+	def unroll(self,_in2hid,_hid2out):
+		"""Flattens matrices and concatenates to a vector """
+
+		return np.append(_in2hid.flatten(),_hid2out.flatten())
 
 	def reroll(self,v):
-		""" re-rolls a vector of weights into the in2hid- and hid2out-sized weight matrices """
-		W_in2hid = np.reshape(v[:self.W_in2hid.size],self.W_in2hid.shape)
-		W_hid2out = np.reshape(v[self.W_in2hid.size:],self.W_hid2out.shape)
-		return W_in2hid,W_hid2out
+		"""Re-rolls a vector of weights into the in2hid- and hid2out-sized weight matrices """
+		
+		_in2hid = np.reshape(v[:self.W_in2hid.size],self.W_in2hid.shape)
+		_hid2out = np.reshape(v[self.W_in2hid.size:],self.W_hid2out.shape)
+		
+		return _in2hid,_hid2out
+
+	def clamp(self,a,minv,maxv):
+		""" imposes a range on all values of a matrix """
+		return np.fmax(minv,np.fmin(maxv,a))
 
 	def check_gradients(self,X,y):
-		""" Computes a finite difference approximation of the gradient to check the correction of 
+		"""Computes a finite difference approximation of the gradient to check the correction of 
 		the backpropagation algorithm"""
 	
 		N = np.shape(X)[1] # number of training cases in this batch of data
