@@ -5,14 +5,15 @@ import neuralnet as nn
 
 # Parameters
 param = {
-'decay':0.001,
+'decay':0.0,
 'nIter':1000,
 'alpha':0.9,
 'lrate':0.35,
 'nHid': 37,
-'batchSize':100,
-'earlyStop':True,
-'update':'improved momentum'
+'adaptive':False,
+'batchSize':1000,
+'earlyStop':False,
+'update':'momentum'
 }
 
 # MNIST data
