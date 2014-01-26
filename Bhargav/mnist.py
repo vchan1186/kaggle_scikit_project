@@ -9,7 +9,7 @@ param = {
 'nIter':1000,
 'alpha':0.9,
 'lrate':0.35,
-'nHid': 37,
+'nHid': 100,
 'adaptive':False,
 'batchSize':1000,
 'earlyStop':False,
@@ -38,7 +38,8 @@ nnet = nn.nnet(d,k,param)
 nnet.initialize_weights()
 
 print "Training..."
-nnet.train(Xtr,ytr,Xval,yval)
+#nnet.train(Xtr,ytr,Xval,yval)
+nnet.optimize(Xtr,ytr)
 
 print "Testing..."
 mce_te = nnet.predict(Xte,yte)

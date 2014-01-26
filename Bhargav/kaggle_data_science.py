@@ -52,7 +52,8 @@ k = np.shape(Ytr)[0]
 
 nnet = nn.nnet(d,k,param) 
 nnet.initialize_weights()
-nnet.train(Xtr,Ytr,Xval,Yval)
+#nnet.train(Xtr,Ytr,Xval,Yval)
+nnet.optimize(Xtr,Ytr)
 
 mce_tr = nnet.predict(Xtr,Ytr)
 mce_val = nnet.predict(Xval,Yval)

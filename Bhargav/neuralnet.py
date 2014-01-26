@@ -78,18 +78,6 @@ class nnet:
 		
 		return dE_dW_in2hid, dE_dW_hid2out
 
-	def compute_gradient(self,w,X,y):
-		""" mainly needed for scipy lm-bfgs or conjugate-gradient optimization routines"""
-		
-		W_in2hid,W_hid2out = self.reroll(w)
-		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
-		dE_dW_in2hid, dE_dW_hid2out = self.bprop(X,y,hidAct,outAct,W_in2hid,W_hid2out)
-		return self.reroll(dE_dW_in2hid,dE_dW_hid2out)
-
-	def optimize():
-		""" uses scipy optimization routines to minimize the cost function """
-
-
 	def train(self,Xtr,ytr,Xval=None,yval=None):
 		""" Performs repeated fprop+bprop with an update method to train a 2-layer feed-forward neural network """
 		
@@ -174,6 +162,7 @@ class nnet:
 		plt.show()
 
 	def update_weights(self,dE_dW_in2hid,dE_dW_hid2out):
+		
 		# decide if we are in a fixed-rate or adaptive learning rate regime
 		if self.param['adaptive']:
 			# check for the agreement of signs
@@ -308,3 +297,30 @@ class nnet:
 			print 'Mean computed error ',cerr,' is larger than the error tolerance -- there is probably an error in the computation'
 		else:
 			print 'Mean computed error ',cerr,' is smaller than the error tolerance -- the computation was probably correct'
+
+	# The next three functions are for doing batch-optimization using routines from 
+	# scipy
+
+	def compute_gradient(self,w,X,y):
+		""" Computation of the gradient """
+		W_in2hid,W_hid2out = self.reroll(w)
+		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
+		dE_dW_in2hid, dE_dW_hid2out = self.bprop(X,y,hidAct,outAct,W_in2hid,W_hid2out)
+		return self.unroll(dE_dW_in2hid,dE_dW_hid2out)
+
+	def compute_cost(self,w,X,y):
+		W_in2hid,W_hid2out = self.reroll(w)
+		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
+		return self.compute_loss(outAct,y,W_in2hid,W_hid2out)
+
+	def optimize(self,Xtr,ytr):
+		""" uses scipy optimization routines to minimize the cost function """
+		nTr = np.shape(Xtr)[1]
+		Xtr = np.append(np.ones([1,nTr]),Xtr,axis=0)
+		w0 = self.unroll(self.W_in2hid, self.W_hid2out)
+		wf = fmin_cg(self.compute_cost,w0,self.compute_gradient,(Xtr,ytr))
+		W_in2hid,W_hid2out = self.reroll(wf)
+		self.W_in2hid = W_in2hid
+		self.W_hid2out = W_hid2out
+
+
