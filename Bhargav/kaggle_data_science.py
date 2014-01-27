@@ -6,9 +6,9 @@ import neuralnet as nn
 param = {
 'decay':0.0,
 'nIter':1000,
-'alpha':0.7,
-'lrate':0.05,
-'nHid': 20,
+'alpha':0.9,
+'lrate':0.7,
+'nHid': 30,
 'batchSize':700,
 'earlyStop':True,
 'update':'improved momentum'
@@ -22,6 +22,7 @@ testData = '/home/avasbr/Desktop/nnet/test.csv'
 # Read in the data
 print "Reading training and testing data..."
 X = dp.read_csv_file(trainData).T
+X = dp.normalize_range(X)
 tY = dp.read_csv_file(trainTargets)
 Y = np.zeros([2,tY.size])
 for idx,y in enumerate(Y.T):
@@ -51,8 +52,8 @@ k = np.shape(Ytr)[0]
 
 nnet = nn.nnet(d,k,param) 
 nnet.initialize_weights()
-nnet.train(Xtr,Ytr,Xval,Yval)
-
+#nnet.train(Xtr,Ytr,Xval,Yval)
+nnet.optimize(Xtr,Ytr)
 
 mce_tr = nnet.predict(Xtr,Ytr)
 mce_val = nnet.predict(Xval,Yval)

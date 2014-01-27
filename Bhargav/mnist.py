@@ -5,14 +5,15 @@ import neuralnet as nn
 
 # Parameters
 param = {
-'decay':0.001,
+'decay':0.0,
 'nIter':1000,
 'alpha':0.9,
 'lrate':0.35,
-'nHid': 37,
-'batchSize':100,
-'earlyStop':True,
-'update':'improved momentum'
+'nHid': 100,
+'adaptive':False,
+'batchSize':1000,
+'earlyStop':False,
+'update':'momentum'
 }
 
 # MNIST data
@@ -37,7 +38,8 @@ nnet = nn.nnet(d,k,param)
 nnet.initialize_weights()
 
 print "Training..."
-nnet.train(Xtr,ytr,Xval,yval)
+#nnet.train(Xtr,ytr,Xval,yval)
+nnet.optimize(Xtr,ytr)
 
 print "Testing..."
 mce_te = nnet.predict(Xte,yte)
