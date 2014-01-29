@@ -8,12 +8,12 @@ param = {
 'decay':0.0,
 'nIter':1000,
 'alpha':0.9,
-'lrate':0.35,
+'lrate':0.7,
 'nHid': 100,
-'adaptive':False,
+'adaptive':True,
 'batchSize':1000,
-'earlyStop':False,
-'update':'momentum'
+'earlyStop':True,
+'update':'improved_momentum'
 }
 
 # MNIST data
@@ -38,12 +38,11 @@ nnet = nn.nnet(d,k,param)
 nnet.initialize_weights()
 
 print "Training..."
-#nnet.train(Xtr,ytr,Xval,yval)
-nnet.optimize(Xtr,ytr)
+nnet.train(Xtr,ytr,Xval,yval)
 
 print "Testing..."
-mce_te = nnet.predict(Xte,yte)
-mce_tr = nnet.predict(Xtr,ytr)
+predTe,mceTe = nnet.predict(Xte,yte)
+predTr,mceTr = nnet.predict(Xtr,ytr)
 print "Summary of Results:"
-print "Misclassification error on test set: ",mce_te
-print "Misclassification error on training set: ",mce_tr
+print "Misclassification error on test set: ",mceTe
+print "Misclassification error on training set: ",mceTr

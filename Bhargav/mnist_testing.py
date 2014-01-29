@@ -11,6 +11,7 @@ param = {
 'alpha':0.9,
 'lrate':0.35,
 'nHid': 50,
+'adaptive': False,
 'batchSize':100,
 'earlyStop':True,
 'update':'momentum'

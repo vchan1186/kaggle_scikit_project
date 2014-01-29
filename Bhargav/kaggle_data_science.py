@@ -5,13 +5,14 @@ import neuralnet as nn
 # Parameters
 param = {
 'decay':0.0,
-'nIter':1000,
+'nIter':2000,
 'alpha':0.9,
 'lrate':0.7,
-'nHid': 30,
-'batchSize':700,
+'adaptive':True,
+'nHid': 20,
+'batchSize':600,
 'earlyStop':True,
-'update':'improved momentum'
+'update':'improved_momentum'
 }
 
 # Files
@@ -29,21 +30,13 @@ for idx,y in enumerate(Y.T):
 	y[tY[idx]] = 1
 
 # Split data into training and validation sets
-trIdx, valIdx = dp.split_train_validation(X,0.7)
-Xtr = X[:,trIdx]
-Ytr = Y[:,trIdx]
-Xval = X[:,valIdx]
-Yval = Y[:,valIdx]
-
-# Testing 
-Xte = dp.read_csv_file(testData).T
-
-print "Training and Validation Phase:"
-print "------------------------------"
-print "Number of training examples: ",np.shape(Xtr)[1]
-print "Number of validation examples: ",np.shape(Xval)[1]
-print "Input dimension: ",np.shape(Xtr)[0]
-print "Output dimension: ",np.shape(Ytr)[0]
+idx = dp.split_train_validation_test(X,[0.6,0.2,0.2])
+Xtr = X[:,idx[0]]
+Ytr = Y[:,idx[0]]
+Xval = X[:,idx[1]]
+Yval = Y[:,idx[1]]
+Xte = X[:,idx[2]]
+Yte = Y[:,idx[2]]
 
 # Train a neural network
 print "Training neural network..."
@@ -52,10 +45,16 @@ k = np.shape(Ytr)[0]
 
 nnet = nn.nnet(d,k,param) 
 nnet.initialize_weights()
-#nnet.train(Xtr,Ytr,Xval,Yval)
-nnet.optimize(Xtr,Ytr)
+nnet.train(Xtr,Ytr,Xval,Yval)
 
-mce_tr = nnet.predict(Xtr,Ytr)
-mce_val = nnet.predict(Xval,Yval)
-print "Training error: ",mce_tr
-print "Testing error: ",mce_val
+predTr, mceTr = nnet.predict(Xtr,Ytr)
+predVal, mceVal = nnet.predict(Xval,Yval)
+predTe, mceTe = nnet.predict(Xte,Yte)
+
+print "Training error: ",mceTr
+print "Validation error: ",mceVal
+print "Testing error: ",mceTe
+
+# Prediction 
+# Xpr = dp.read_csv_file(testData).T
+# Ypr = nnet.predict(Xpr)

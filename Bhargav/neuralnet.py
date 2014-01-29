@@ -21,8 +21,8 @@ class nnet:
 		self.param = param
 		self.d = d # input (layer) size
 		self.k = k # output (layer) size
-		self.W_in2hid = 0.1*np.random.rand(d+1,param['nHid'])	# weights from input to hidden layer (+bias), transposed
-		self.W_hid2out = 0.1*np.random.rand(param['nHid']+1,k) # weights from hidden layer to output (+bias), transposed
+		self.W_in2hid = 0.01*np.random.rand(d+1,param['nHid'])	# weights from input to hidden layer (+bias), transposed
+		self.W_hid2out = 0.01*np.random.rand(param['nHid']+1,k) # weights from hidden layer to output (+bias), transposed
 		
 		# needed for early stopping
 		self.bW_in2hid = np.random.rand(d+1,param['nHid']) # stores the best W_in2hid
@@ -41,7 +41,7 @@ class nnet:
 		self.ldE_dW_hid2out = np.ones([param['nHid']+1,k])
 
 		# uncomment for gradient checking
-		#self.gradient = np.empty((d+1)*param['nHid'] + (param['nHid']+1)*k) # needed only for doing gradient checking
+		# self.gradient = np.empty((d+1)*param['nHid'] + (param['nHid']+1)*k) # needed only for doing gradient checking
 
 	def initialize_weights(self):
 		"""Useful for customizing weights, and for testing purposes"""
@@ -83,70 +83,81 @@ class nnet:
 		
 		nTr = np.shape(Xtr)[1]
 		Xtr = np.append(np.ones([1,nTr]),Xtr,axis=0)
-		
-		if Xval is not None and yval is not None:		
-			nVal = np.shape(Xval)[1]
-			Xval = np.append(np.ones([1,nVal]),Xval,axis=0)
-			valLoss = []
-			if self.param['earlyStop']:
-				bvalLoss = float("inf")
 
-		bidx = -1
-		trLoss = []
-		for i in range(self.param['nIter']):
+		# uses the scipy routine for conjugate gradient
+		if self.param['update'] == 'conjugate_gradient':
+			w0 = self.unroll(self.W_in2hid, self.W_hid2out)
+			wf = fmin_cg(self.compute_cost,w0,self.compute_gradient,(Xtr,ytr))
+			W_in2hid,W_hid2out = self.reroll(wf)
+			self.W_in2hid = W_in2hid
+			self.W_hid2out = W_hid2out
 
-			idx = np.random.permutation(nTr)[:self.param['batchSize']] # mini-batch indices	
-			
-			if self.param['update']=='improved momentum':
-				# take a step first in the direction of the accumulated gradient
-				self.W_in2hid += self.mW_in2hid
-				self.W_hid2out += self.mW_hid2out
-
-			# fprop,bprop
-			hidAct, outAct = self.fprop(Xtr[:,idx])
-			dE_dW_in2hid, dE_dW_hid2out = self.bprop(Xtr[:,idx],ytr[:,idx],hidAct,outAct)
-
-			# uncomment for gradient checking
-			#self.gradient = self.unroll(dE_dW_in2hid, dE_dW_hid2out)
-			#self.check_gradients(Xtr[:,idx],ytr[:,idx])
-
-			# update weights
-			self.update_weights(dE_dW_in2hid,dE_dW_hid2out)
-
-			# keep track of the last-used gradient if we are doing adaptive learning
-			self.ldE_dW_in2hid = dE_dW_in2hid
-			self.ldE_dW_hid2out = dE_dW_hid2out
-
-			# uncomment to compute training and (if val-set provided) validation loss
-			hidAct, outAct = self.fprop(Xtr)
-			trLoss.append(self.compute_loss(outAct,ytr))
-
-			if Xval is not None and yval is not None:
-				hidAct, outAct = self.fprop(Xval)
-				thisLoss = self.compute_loss(outAct, yval)
-				valLoss.append(thisLoss)
-				
-				# keep track of the best weights so far 
-				if self.param['earlyStop'] and thisLoss < bvalLoss:
-					bvalLoss = thisLoss
-					bidx = i
-					self.bW_in2hid = np.copy(self.W_in2hid)
-					self.bW_hid2out = np.copy(self.W_hid2out)
-
-		# set the weights to the best weights
-		if self.param['earlyStop']:
-			self.W_in2hid = self.bW_in2hid
-			self.W_hid2out = self.bW_hid2out
-
-		print "Final (or best) Training Cross-Entropy Error: ",trLoss[bidx]
-		
-		if Xval is not None and yval is not None:
-			print "Final (or best) Validation Cross-Entropy Error: ",valLoss[bidx]
-			self.plot_curves(trLoss,valLoss)
-			return trLoss[bidx], valLoss[bidx]
+		# custom methods for doing gradient-based learning
 		else:
-			self.plot_curves(trLoss)
-			return trLoss[bidx]
+			if Xval is not None and yval is not None:		
+				nVal = np.shape(Xval)[1]
+				Xval = np.append(np.ones([1,nVal]),Xval,axis=0)
+				valLoss = []
+				if self.param['earlyStop']:
+					bvalLoss = float("inf")
+
+			bidx = -1
+			trLoss = []
+			for i in range(self.param['nIter']):
+
+				idx = np.random.permutation(nTr)[:self.param['batchSize']] # mini-batch indices	
+				
+				if self.param['update']=='improved_momentum':
+					# take a step first in the direction of the accumulated gradient
+					self.W_in2hid += self.mW_in2hid
+					self.W_hid2out += self.mW_hid2out
+
+				# fprop,bprop
+				hidAct, outAct = self.fprop(Xtr[:,idx])
+				dE_dW_in2hid, dE_dW_hid2out = self.bprop(Xtr[:,idx],ytr[:,idx],hidAct,outAct)
+
+				# uncomment for gradient checking
+				# self.gradient = self.unroll(dE_dW_in2hid, dE_dW_hid2out)
+				# self.check_gradients(Xtr[:,idx],ytr[:,idx])
+
+				# update weights
+				self.update_weights(dE_dW_in2hid,dE_dW_hid2out)
+
+				# keep track of the last-used gradient if we are doing adaptive learning
+				self.ldE_dW_in2hid = dE_dW_in2hid
+				self.ldE_dW_hid2out = dE_dW_hid2out
+
+				# uncomment to compute training and (if val-set provided) validation loss - this is
+				# on the entire training set (not just a mini-batch)
+				hidAct, outAct = self.fprop(Xtr)
+				trLoss.append(self.compute_loss(outAct,ytr))
+
+				if Xval is not None and yval is not None:
+					hidAct, outAct = self.fprop(Xval)
+					thisLoss = self.compute_loss(outAct, yval)
+					valLoss.append(thisLoss)
+					
+					# keep track of the best weights so far 
+					if self.param['earlyStop'] and thisLoss < bvalLoss:
+						bvalLoss = thisLoss
+						bidx = i
+						self.bW_in2hid = np.copy(self.W_in2hid)
+						self.bW_hid2out = np.copy(self.W_hid2out)
+
+			# set the weights to the best weights
+			if self.param['earlyStop']:
+				self.W_in2hid = self.bW_in2hid
+				self.W_hid2out = self.bW_hid2out
+
+			print "Final (or best) Training Cross-Entropy Error: ",trLoss[bidx]
+			
+			if Xval is not None and yval is not None:
+				print "Final (or best) Validation Cross-Entropy Error: ",valLoss[bidx]
+				self.plot_curves(trLoss,valLoss)
+				return trLoss[bidx], valLoss[bidx]
+			else:
+				self.plot_curves(trLoss)
+				return trLoss[bidx]
 
 	def plot_curves(self,trLoss,valLoss=None):
 		""" Plot training and (optional) validation loss """
@@ -168,10 +179,13 @@ class nnet:
 			# check for the agreement of signs
 			sW_in2hid = self.ldE_dW_in2hid*dE_dW_in2hid
 			sW_hid2out = self.ldE_dW_hid2out*dE_dW_hid2out
-			self.gW_in2hid += (sW_in2hid>0)*0.05
-			self.gW_in2hid *= (sW_in2hid<0)*0.95
-			self.gW_hid2out += (sW_hid2out>0)*0.05
-			self.gW_hid2out *= (sW_hid2out<0)*0.95
+			
+			# same sign --> increase learning rate, opposite --> decrease 
+			np.putmask(self.gW_in2hid, sW_in2hid<0, self.gW_in2hid*0.95)
+			np.putmask(self.gW_in2hid, sW_in2hid>0, self.gW_in2hid+0.05)
+			np.putmask(self.gW_hid2out, sW_hid2out<0, self.gW_in2hid*0.95)
+			np.putmask(self.gW_hid2out, sW_hid2out>0, self.gW_hid2out+0.05)
+
 			# keep the learning rates clamped
 			self.gW_in2hid = self.clamp(self.gW_in2hid,0.1,10)
 			self.gW_hid2out = self.clamp(self.gW_hid2out,0.1,10)
@@ -189,7 +203,7 @@ class nnet:
 			self.W_hid2out -= self.param['lrate']*self.gW_hid2out*self.mW_hid2out
 		
 		# improved momentum
-		elif self.param['update']=='improved momentum':
+		elif self.param['update']=='improved_momentum':
 			# same as 'default' 
 			self.W_in2hid -= self.param['lrate']*self.gW_in2hid*dE_dW_in2hid
 			self.W_hid2out -= self.param['lrate']*self.gW_hid2out*dE_dW_hid2out
@@ -200,14 +214,16 @@ class nnet:
 		# rmsprop
 
 	def predict(self,X,y=None):
-		"""Uses fprop for predicting labels of data"""
+		"""Uses fprop for predicting labels of data. If labels are also provided, also returns mce """
 
 		n = np.shape(X)[1]
 		X = np.append(np.ones([1,n]),X,axis=0)
 		hidAct, outAct = self.fprop(X,self.W_in2hid,self.W_hid2out)
+		pred = np.argmax(outAct,axis=0)
 		if y==None:
-			return np.argmax(outAct,axis=0)
-		return 1.0-np.mean(1.0*(np.argmax(outAct,axis=0)==np.argmax(y,axis=0)))
+			return pred
+		mce = 1.0-np.mean(1.0*(np.argmax(outAct,axis=0)==np.argmax(y,axis=0)))
+		return pred,mce
 
 	def compute_mce(self,pr,te):
 		" Computes the misclassification error"
@@ -298,8 +314,8 @@ class nnet:
 		else:
 			print 'Mean computed error ',cerr,' is smaller than the error tolerance -- the computation was probably correct'
 
-	# The next three functions are for doing batch-optimization using routines from 
-	# scipy
+	# The following are convenience functions for doing batch-optimization using routines from 
+	# scipy (e.g, fmin_cg)
 
 	def compute_gradient(self,w,X,y):
 		""" Computation of the gradient """
@@ -312,15 +328,3 @@ class nnet:
 		W_in2hid,W_hid2out = self.reroll(w)
 		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
 		return self.compute_loss(outAct,y,W_in2hid,W_hid2out)
-
-	def optimize(self,Xtr,ytr):
-		""" uses scipy optimization routines to minimize the cost function """
-		nTr = np.shape(Xtr)[1]
-		Xtr = np.append(np.ones([1,nTr]),Xtr,axis=0)
-		w0 = self.unroll(self.W_in2hid, self.W_hid2out)
-		wf = fmin_cg(self.compute_cost,w0,self.compute_gradient,(Xtr,ytr))
-		W_in2hid,W_hid2out = self.reroll(wf)
-		self.W_in2hid = W_in2hid
-		self.W_hid2out = W_hid2out
-
-
