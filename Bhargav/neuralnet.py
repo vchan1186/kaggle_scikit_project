@@ -45,8 +45,8 @@ class nnet:
 
 	def initialize_weights(self):
 		"""Useful for customizing weights, and for testing purposes"""
-		self.W_in2hid  = 0.1*np.cos(np.arange(self.W_in2hid.size).reshape(self.W_in2hid.shape))
-		self.W_hid2out = 0.1*np.cos((np.arange(self.W_hid2out.size)+self.W_in2hid.size).reshape(self.W_hid2out.shape))
+		self.W_in2hid  = 0.01*np.cos(np.arange(self.W_in2hid.size).reshape(self.W_in2hid.shape))
+		self.W_hid2out = 0.01*np.cos((np.arange(self.W_hid2out.size)+self.W_in2hid.size).reshape(self.W_hid2out.shape))
 
 	def fprop(self,X,W_in2hid=None,W_hid2out=None):
 		"""Perform forward propagation"""

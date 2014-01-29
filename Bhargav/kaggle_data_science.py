@@ -1,24 +1,25 @@
 import numpy as np
 import dataproc as dp
 import neuralnet as nn
+from sklearn.decomposition import PCA, KernelPCA
 
 # Parameters
 param = {
-'decay':0.0,
-'nIter':2000,
-'alpha':0.9,
-'lrate':0.7,
+'decay':0.000,
+'nIter':500,
+'alpha':0.8,
+'lrate':0.65,
 'adaptive':True,
-'nHid': 20,
+'nHid': 8,
 'batchSize':600,
 'earlyStop':True,
 'update':'improved_momentum'
 }
-
+nComp = 15
 # Files
-trainData = '/home/avasbr/Desktop/nnet/train.csv'
-trainTargets = '/home/avasbr/Desktop/nnet/trainLabels.csv'
-testData = '/home/avasbr/Desktop/nnet/test.csv'
+trainData = '/home/avasbr/Desktop/kaggle_scikit_project/Bhargav/train.csv'
+trainTargets = '/home/avasbr/Desktop/kaggle_scikit_project/Bhargav/trainLabels.csv'
+testData = '/home/avasbr/Desktop/kaggle_scikit_project/Bhargav/test.csv'
 
 # Read in the data
 print "Reading training and testing data..."
@@ -37,6 +38,19 @@ Xval = X[:,idx[1]]
 Yval = Y[:,idx[1]]
 Xte = X[:,idx[2]]
 Yte = Y[:,idx[2]]
+
+# Apply dimensionality reduction using PCA
+print "Applying PCA with",nComp,"principal components"
+kpca = KernelPCA(n_components=nComp,kernel='linear')
+Xtr = kpca.fit_transform(Xtr.T).T
+Xval = kpca.transform(Xval.T).T
+Xte = kpca.transform(Xte.T).T
+
+# Apply dimensionality reduction using LDA
+# lda = LDA(n_components=10)
+# Xtr = lda.fit_transform(Xtr.T,tY[idx[0]]).T
+# Xval = lda.transform(Xval.T).T
+# Xte = lda.transform(Xte.T).T
 
 # Train a neural network
 print "Training neural network..."
