@@ -16,7 +16,7 @@ Y = dp.read_csv_file(trainTargets)
 X = dp.normalize_range(X) # do a little feature scaling
 
 # PCA
-kpca = KernelPCA(n_components=2,kernel='rbf')
+kpca = KernelPCA(n_components=2,kernel='linear')
 Xr = kpca.fit_transform(X)
 plt.scatter(Xr[Y==0,0],Xr[Y==0,1],color='red')
 plt.scatter(Xr[Y==1,0],Xr[Y==1,1],color='blue')
