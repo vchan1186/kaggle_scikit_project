@@ -7,24 +7,35 @@ import numpy as np
 # 3. scipy:
 from scipy import optimize
 
-import f2
+# import f2
 def sigmoid(z):
     return 1.0/(1.0+np.exp(-z))
 
 def cost(theta, X, y):
 	m = X.shape[0]
+	theta = np.reshape(theta,(initial_theta.size,1))
+	# theta is 1D numpy array of size 41.
+	# X is 2D numpy array of size 1000 by 41
+	# h is 1000 by 1 numpy array.
 	h = sigmoid(np.dot(X,theta))
-    
+ 	# print("h shape in cost is", h.shape)   
     # Calculate cost function
     # y.T takes transpose of numpy array y.
-	J=1/m*(-np.dot(y.T,np.log(h)) - np.dot((1.0-y).T,np.log(1.0-h)))
-	return J
+    # y.T is 1 by 1000 numpy array
+	J=1.0/m*(-np.dot(y.T,np.log(h)) - np.dot((1.0-y).T,np.log(1.0-h)))
+	return J[0,0]
 def grad(theta, X, y): 
 	m = X.shape[0]
-	print("X size is = ",X.shape)
-	print("theta size is = ", theta.shape)
-	h = sigmoid(np.dot(X,theta))  
+	theta = np.reshape(theta,(initial_theta.size,1))
+	h = sigmoid(np.dot(X,theta))
+
+	# X.T is 41 by 1000 numpy array.
+
+	# grad is   
 	grad = np.dot(X.T,1.0/m*(h-y))
+	grad = np.reshape(grad,grad.shape[0])
+ # 	print("h-y shape is ", (h-y).shape)
+	# print("grad shape is",grad.shape)
 	return grad
 
 # ---------------------------------------------------
@@ -60,7 +71,8 @@ bias[:] = 1
 
 # Initialize learning parameter array with zeros.
 # initial theta is n+1 x 1 array.
-initial_theta = np.zeros((n+1,1))
+# initial_theta = np.zeros((n+1,1))
+initial_theta = np.zeros(n+1)
 
 # Pad X with ones: hstack = "horizontal stack" (column wise)
 #                  vstack = "vertical stack" (row wise)
@@ -68,8 +80,14 @@ initial_theta = np.zeros((n+1,1))
 # X is now m x n+1 array
 X=np.hstack((bias,X))
 
-# cost,grad = f2.cost_function(initial_theta, X, y)
+# J = cost(initial_theta, X, y)
+# Had to distinguish between 1D and 2D numpy arrays. Especially,
+# how 1D numpy arrays interact with 2D numpy arrays.
+# The optimize.fmin_cg function takes in 1D numpy arrays. Therefore,
+# I had to reshape in my cost and grad functions.
+# Need to clean up code tomorrow!
 
+# Lets also figure out principal component analysis.
 res1 = optimize.fmin_cg(cost, initial_theta, grad, (X,y))
 # ---------------------------------------------------
 # Calculate Cost Functions and Gradients
