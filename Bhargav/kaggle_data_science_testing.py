@@ -7,15 +7,15 @@ import dataproc as dp
 
 # Parameters
 param = {
-'decay':0.00,
+'decay':0.0,
 'nIter':1000,
 'alpha':0.85,
 'lrate':0.6,
 'nHid': 25,
-'adaptive': False,
+'adaptive': True,
 'batchSize':600,
 'earlyStop':True,
-'update':'improved_momentum'
+'update':'imp1roved_momentum'
 }
 
 def plot_validation_curves(key,keyRange):

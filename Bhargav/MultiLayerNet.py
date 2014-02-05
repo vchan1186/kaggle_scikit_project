@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fmin_cg
+import operator as op
 
 class MultiLayerNet:
 
@@ -28,15 +29,15 @@ class MultiLayerNet:
 		m = y.shape[1] # number of instances
 
 		# initialize weights randomly
-		n_nodes = d+self.n_hid+k
-		self.weights = []:
-		for n1,n2 in zip(n_nodes[:-1],n_nodes[1:])
+		n_nodes = [d]+self.n_hid+[k] # concatenate the input and output layers
+		self.weights = []
+		for n1,n2 in zip(n_nodes[:-1],n_nodes[1:]):
 			self.weights.append(0.01*np.random.rand(n1+1,n2))
 		
 		accum_grad = []
 		# needed for momentum, improved_momentum
 		if self.update=='momentum' or self.update=='improved_momentum':
-			for n1,n2 in zip(n_nodes[:-1],n_nodes[1:])
+			for n1,n2 in zip(n_nodes[:-1],n_nodes[1:]):
 				accum_grad.append(np.zeros([n1+1,n2]))
 
 		# needed for adaptive learning
@@ -44,10 +45,10 @@ class MultiLayerNet:
 		last_grad = []
 		if self.adaptive:
 			# local gain terms
-			for n1,n2 in zip(n_nodes[:-1],n_nodes[1:])
-			gain.append(np.ones([n1+1,n2]))
-			# gradient values from previous iteration
-			last_grad,append(np.ones([n1+1,n2]))
+			for n1,n2 in zip(n_nodes[:-1],n_nodes[1:]):
+				gain.append(np.ones([n1+1,n2]))
+				# gradient values from previous iteration
+				last_grad,append(np.ones([n1+1,n2]))
 
 		# uncomment for gradient checking
 		# gradient = np.empty((d+1)*self.n_hid + (self.n_hid+1)*k) # needed only for doing gradient checking
@@ -59,6 +60,7 @@ class MultiLayerNet:
 			W_in2hid,W_hid2out = self.reroll(wf)
 			self.W_in2hid_ = W_in2hid
 			self.W_hid2out_ = W_hid2out
+		
 		else:
 			for i in range(n_iter):
 
@@ -69,8 +71,8 @@ class MultiLayerNet:
 					self.weights = map(sum,zip(self.weights,accum_grad))
 
 				# propagate the data 
-				hidAct, outAct = self.fprop(X[:,idx])
-				dE_dW_in2hid, dE_dW_hid2out = self.bprop(X[:,idx],y[:,idx],hidAct,outAct)
+				act = self.fprop(X[:,idx]) # get the activations from forward propagation
+				grad = self.bprop(X[:,idx],y[:,idx],act)
 
 				# uncomment for gradient checking
 				# self.gradient = self.unroll(dE_dW_in2hid, dE_dW_hid2out)
@@ -78,6 +80,7 @@ class MultiLayerNet:
 
 				if self.adaptive:
 					# check for the agreement of signs
+					sign_grad = map(op.mul,zip(last_grad,grad))
 					sW_in2hid = ldE_dW_in2hid*dE_dW_in2hid
 					sW_hid2out = ldE_dW_hid2out*dE_dW_hid2out
 					
@@ -121,7 +124,7 @@ class MultiLayerNet:
 			weights = self.weights
 
 		N = X.shape[1] # number of training cases in this batch of data
-		act = [np.append(np.ones([1,N]),self.logit(np.dot(weights[0].T,X),axis=0)]
+		act = [np.append(np.ones([1,N]),self.logit(np.dot(weights[0].T,X),axis=0))] # use the first data matrix to compute the first activation
 		for i,W in enumerate(weights[1:-1]):
 			act.append(np.append(np.ones([1,N]),self.logit(np.dot(W.T,act[i])),axis=0)) # sigmoid activations
 		act.append(self.softmax(np.dot(weights[-1].T,act[-1]))) # output of the last layer is a softmax
@@ -131,25 +134,34 @@ class MultiLayerNet:
 	def bprop(self,X,y,act,weights=None):
 		"""Performs backpropagation"""
 
+		# reversing the lists makes it easier to work with 
 		if weights==None:
-			weights = self.weights
+			weights = self.weights[::-1]
+		act = act[::-1]
 
-		N = np.shape(X)[1]
-		weight_derivs = []
+		N = X.shape[1]
+		grad = []
 		
-		dE_dzo = outAct-y # derivative of the cost-function with respect to the logit into the output layer
-		dE_dW_hid2out = 1.0/N*np.dot(hidAct,dE_dzo.T) + self.param['decay']*W_hid2out
-		dE_dyh = np.dot(W_hid2out,dE_dzo)
-		dE_dzh = (dE_dyh*hidAct*(1-hidAct))[1:,:]
-		dE_dW_in2hid = 1.0/N*np.dot(X,dE_dzh.T)+self.param['decay']*W_in2hid
+		# the final layer is a softmax, so this value is different. 
+		grad_z = act[0]-y
+		
+		for i,a in enumerate(act[1:]):
+			grad.append(1.0/N*np.dot(a,grad_z.T) + self.decay*weights[i])
+			grad_y = np.dot(weights[i],grad_z)
+			grad_z = grad_y*a*(1-a)[1:,:] # no connection to the bias node
+		
+		grad.append(1.0/N*np.dot(X,grad_z.T) + self.decay*weights[-1])
+
+		# re-reverse and return
+		return grad[::-1]
 		
 	def predict(self,X,y=None):
 		"""Uses fprop for predicting labels of data. If labels are also provided, also returns mce """
 
-		n = np.shape(X)[1]
+		n = X.shape[1]
 		X = np.append(np.ones([1,n]),X,axis=0)
-		hidAct, outAct = self.fprop(X,self.W_in2hid,self.W_hid2out)
-		pred = np.argmax(outAct,axis=0)
+		act = self.fprop(X)
+		pred = np.argmax(act[-1],axis=0) # only the final activation contains the 
 		if y==None:
 			return pred
 		mce = 1.0-np.mean(1.0*(np.argmax(outAct,axis=0)==np.argmax(y,axis=0)))
@@ -171,34 +183,35 @@ class MultiLayerNet:
 		logSum = np.log(np.sum(np.exp(z-maxV),axis=0))+maxV
 		return np.exp(z-logSum)
 
-	def compute_class_loss(self,outAct,y):
+	def compute_class_loss(self,act,y):
 		"""Computes the cross-entropy classification loss of the model (without weight decay)"""
 		
 		#  E = 1/N*sum(-y*log(p)) - negative log probability of the right answer		
-		return np.mean(np.sum(-1.0*y*np.log(outAct),axis=0))
+		return np.mean(np.sum(-1.0*y*np.log(act),axis=0))
 
-	def compute_loss(self,outAct,y,W_in2hid=None, W_hid2out=None):
+	def compute_loss(self,act,y,weights=None):
 		"""Computes the cross entropy classification (with weight decay)"""
 		
-		if W_in2hid is None and W_hid2out is None:
-			W_in2hid = self.W_in2hid
-			W_hid2out = self.W_hid2out
+		if weights is None:
+			weights = self.weights
 		
-		return self.compute_class_loss(outAct,y) + 0.5*self.param['decay']*(np.sum(W_in2hid**2)+np.sum(W_hid2out**2))
+		return self.compute_class_loss(outAct,y) + 0.5*self.decay*sum([w**2 for w in weights])
 
-	def unroll(self,_in2hid,_hid2out):
+	def unroll(self,weights):
 		"""Flattens matrices and concatenates to a vector """
-
-		return np.append(_in2hid.flatten(),_hid2out.flatten())
+		return reduce(np.append,(map(np.ndarray.flatten,weights)))
 
 	def reroll(self,v):
-		"""Re-rolls a vector of weights into the in2hid- and hid2out-sized weight matrices """
-		
-		_in2hid = np.reshape(v[:self.W_in2hid.size],self.W_in2hid.shape)
-		_hid2out = np.reshape(v[self.W_in2hid.size:],self.W_hid2out.shape)
-		
-		return _in2hid,_hid2out
+		"""Re-rolls a vector of weights into the in2hid- and hid2out-sized weight matrices"""
 
+		idx = 0
+		r_weights = []
+		for w in self.weights:
+			r_weights.append(np.reshape(v[idx:idx+w.size],self.w.shape))
+			idx+=w.size
+		
+		return r_weights
+		
 	def clamp(self,a,minv,maxv):
 		""" imposes a range on all values of a matrix """
 		return np.fmax(minv,np.fmin(maxv,a))
@@ -207,33 +220,33 @@ class MultiLayerNet:
 		"""Computes a finite difference approximation of the gradient to check the correction of 
 		the backpropagation algorithm"""
 	
-		N = np.shape(X)[1] # number of training cases in this batch of data
+		N = X.shape[1] # number of training cases in this batch of data
 		
 		err_tol = 1e-8	# tolerance
 		eps = 1e-5	# epsilon (for numerical gradient computation)
 
 		# Numerical computation of the gradient..but checking every single derivative is 
 		# cumbersome, check 20% of the values
-		n = self.W_in2hid.size + self.W_hid2out.size
+		n = sum(np.size(w) for w in self.weights)
  		idx = np.random.permutation(n)[:(n/5)] # choose a random 20% 
  		apprxDerv = [None]*len(idx)
 
 		for i,x in enumerate(idx):
 			
-			W_plus = self.unroll(self.W_in2hid,self.W_hid2out)
-			W_minus = self.unroll(self.W_in2hid,self.W_hid2out)
+			W_plus = self.unroll(self.weights)
+			W_minus = self.unroll(self.weights)
 			
 			# Perturb one of the weights by eps
 			W_plus[x] += eps
 			W_minus[x] -= eps
-			W_in2hid_plus, W_hid2out_plus = self.reroll(W_plus)
-			W_in2hid_minus, W_hid2out_minus = self.reroll(W_minus)
+			weights_plus = self.reroll(W_plus)
+			weights_minus = self.reroll(W_minus)
 
 			# run fprop and compute the loss for both sides  
-			hidAct,outAct = self.fprop(X,W_in2hid_plus,W_hid2out_plus)
-			lossPlus = self.compute_loss(outAct, y, W_in2hid_plus, W_hid2out_plus)
-			hidAct,outAct = self.fprop(X,W_in2hid_minus,W_hid2out_minus)
-			lossMinus = self.compute_loss(outAct, y, W_in2hid_minus, W_hid2out_minus)
+			act = self.fprop(X,weights_plus)
+			lossPlus = self.compute_loss(act, y, weights_plus)
+			act = self.fprop(X,weights_minus)
+			lossMinus = self.compute_loss(act, y, weights_minus)
 			
 			apprxDerv[i] = 1.0*(lossPlus-lossMinus)/(2*eps) # ( E(weights[i]+eps) - E(weights[i]-eps) )/(2*eps)
 			
@@ -249,12 +262,12 @@ class MultiLayerNet:
 
 	def compute_gradient(self,w,X,y):
 		""" Computation of the gradient """
-		W_in2hid,W_hid2out = self.reroll(w)
-		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
-		dE_dW_in2hid, dE_dW_hid2out = self.bprop(X,y,hidAct,outAct,W_in2hid,W_hid2out)
-		return self.unroll(dE_dW_in2hid,dE_dW_hid2out)
+		weights = self.reroll(w)
+		act = self.fprop(X,weights)
+		grad = self.bprop(X,y,act,weights)
+		return self.unroll(grad)
 
 	def compute_cost(self,w,X,y):
-		W_in2hid,W_hid2out = self.reroll(w)
-		hidAct,outAct = self.fprop(X,W_in2hid,W_hid2out)
-		return self.compute_loss(outAct,y,W_in2hid,W_hid2out)
+		weights = self.reroll(w)
+		act = self.fprop(X,weights)
+		return self.compute_loss(act,y,weights)

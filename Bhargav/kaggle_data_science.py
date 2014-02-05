@@ -5,21 +5,21 @@ from sklearn.decomposition import PCA, KernelPCA
 
 # Parameters
 param = {
-'decay':0.000,
+'decay':0.0,
 'nIter':500,
 'alpha':0.8,
 'lrate':0.65,
 'adaptive':True,
-'nHid': 8,
+'nHid': 20,
 'batchSize':600,
 'earlyStop':True,
 'update':'improved_momentum'
 }
-nComp = 15
+#nComp = 10
 # Files
-trainData = '/home/avasbr/Desktop/kaggle_scikit_project/Bhargav/train.csv'
-trainTargets = '/home/avasbr/Desktop/kaggle_scikit_project/Bhargav/trainLabels.csv'
-testData = '/home/avasbr/Desktop/kaggle_scikit_project/Bhargav/test.csv'
+trainData = '/home/avasbr/Desktop/kaggle_project/kaggle_scikit_project/Bhargav/train.csv'
+trainTargets = '/home/avasbr/Desktop/kaggle_project/kaggle_scikit_project/Bhargav/trainLabels.csv'
+testData = '/home/avasbr/Desktop/kaggle_project/kaggle_scikit_project/Bhargav/test.csv'
 
 # Read in the data
 print "Reading training and testing data..."
@@ -40,11 +40,11 @@ Xte = X[:,idx[2]]
 Yte = Y[:,idx[2]]
 
 # Apply dimensionality reduction using PCA
-print "Applying PCA with",nComp,"principal components"
-kpca = KernelPCA(n_components=nComp,kernel='linear')
-Xtr = kpca.fit_transform(Xtr.T).T
-Xval = kpca.transform(Xval.T).T
-Xte = kpca.transform(Xte.T).T
+# print "Applying PCA with",nComp,"principal components"
+# kpca = KernelPCA(n_components=nComp,kernel='linear')
+# Xtr = kpca.fit_transform(Xtr.T).T
+# Xval = kpca.transform(Xval.T).T
+# Xte = kpca.transform(Xte.T).T
 
 # Apply dimensionality reduction using LDA
 # lda = LDA(n_components=10)
