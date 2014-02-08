@@ -12,7 +12,7 @@ param = {
 'nHid': 100,
 'adaptive':True,
 'batchSize':1000,
-'earlyStop':True,
+'earlyStop':False,
 'update':'improved_momentum'
 }
 
