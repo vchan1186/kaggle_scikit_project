@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import fmin_cg
 
-class MultiLayerNet:
+class SparseAutoencoder:
 
 	def __init__(self,n_hid=[50],decay=0.0,alpha=0.9,learn_rate=0.35,adaptive='False',
 		batch_size=100,update='improved_momentum'):
@@ -122,11 +122,9 @@ class MultiLayerNet:
 	def bprop(self,X,y,act,weights=None):
 		"""Performs backpropagation"""
 
+		# reversing the lists makes it easier to work with 
 		if weights==None:
-			weights = self.weights
-
-		# reversing the lists makes it easier to work with 					
-		weights = weights[::-1]
+			weights = self.weights[::-1]
 		act = act[::-1]
 
 		N = X.shape[1]
@@ -264,4 +262,4 @@ class MultiLayerNet:
 	def compute_cost(self,w,X,y):
 		weights = self.reroll(w)
 		act = self.fprop(X,weights)
-		return self.compute_loss(act[-1],y,weights)
+		return self.compute_loss(act,y,weights)

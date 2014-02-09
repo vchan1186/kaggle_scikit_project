@@ -5,14 +5,13 @@ import MultiLayerNet as mln
 
 # Parameters
 decay = 0.0
-n_iter = 1000
+n_iter = 150
 alpha = 0.9
 learn_rate = 0.7
 adaptive = True
 batch_size = 1000
-n_hid = [30,20]
-update = "improved_momentum"
-
+n_hid = [50,35]
+update = "conjugate_gradient"
 
 # MNIST dataset
 data = scipy.io.loadmat('training_data.mat')
