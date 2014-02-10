@@ -4,16 +4,13 @@ from scipy.optimize import fmin_cg
 
 class SparseAutoencoder:
 
-	def __init__(self,n_hid=[50],decay=0.0,alpha=0.9,learn_rate=0.35,adaptive='False',
-		batch_size=100,update='improved_momentum'):
+	def __init__(self,n_hid=[50],sparsity=0.005, beta=0.1, decay=0.01, batch_size = 500):
 		
 		self.n_hid = n_hid
 		self.decay = decay
-		self.alpha = alpha
-		self.learn_rate = learn_rate
-		self.adaptive = adaptive
+		self.beta = beta
+		self.sparsity = sparsity
 		self.batch_size = batch_size
-		self.update = update
 
 	def fit(self,X,y,n_iter=1000):
 		
@@ -142,49 +139,29 @@ class SparseAutoencoder:
 
 		# re-reverse and return
 		return grad[::-1]
-		
-	def predict(self,X,y=None):
-		"""Uses fprop for predicting labels of data. If labels are also provided, also returns mce """
 
-		X = X.T
-		y = y.T
-		m = X.shape[1]
-		X = np.append(np.ones([1,m]),X,axis=0)
-		act = self.fprop(X)
-		pred = np.argmax(act[-1],axis=0) # only the final activation contains the 
-		if y==None:
-			return pred
-		mce = 1.0-np.mean(1.0*(pred==np.argmax(y,axis=0)))
-		
-		return pred,mce
-
-	def compute_mce(self,pr,te):
-		" Computes the misclassification error"
-		return 1.0-np.mean(1.0*(pr==te))
 
 	def logit(self,z):
 		"""Computes the element-wise logit of z"""
 		
 		return 1./(1. + np.exp(-1.*z))
-
-	def softmax(self,z):
-		""" Computes the softmax of the outputs in a numerically stable manner"""
-		
-		maxV = np.max(z,axis=0)
-		logSum = np.log(np.sum(np.exp(z-maxV),axis=0))+maxV
-		return np.exp(z-logSum)
-
+	
+	def compute_avg_act(y):
+		self.p_hat = np.mean(y,axis=1)
+	
 	def compute_class_loss(self,act,y):
-		"""Computes the cross-entropy classification loss of the model (without weight decay)"""
+		"""Computes the loss function of the autoencoder (without weight decay)"""
 		
-		#  E = 1/N*sum(-y*log(p)) - negative log probability of the right answer
-		return np.mean(np.sum(-1.0*y*np.log(act),axis=0))
+		#  E = 1/m*||act-y||^2 + beta*sum(kl(p||p_hat))
+		return np.mean(np.sum((act-y)**2,axis=0) + beta*np.sum(self.p*np.log(1.0*self.p/self.p_hat) + 
+				(1-self.p)*np.log(1.0*(1-self.p)/(1-self.p_hat))))
 
 	def compute_loss(self,act,y,weights=None):
 		"""Computes the cross entropy classification (with weight decay)"""
 		
 		if weights is None:
 			weights = self.weights
+
 		return self.compute_class_loss(act,y) + 0.5*self.decay*sum([np.sum(w**2) for w in weights])
 
 	def unroll(self,weights):
